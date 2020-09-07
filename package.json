@@ -1,0 +1,19 @@
+{
+  "name": "node_study",
+  "version": "0.0.1",
+  "description": "node学习,临时项目",
+  "main": "gulpfile.js",
+  "dependencies": {
+    "gulp": "^4.0.2",
+    "gulp-file-include": "^2.2.2",
+    "gulp-htmlmin": "^5.0.1",
+    "mime": "^2.4.6",
+    "mongoose": "^5.9.17"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "ytx",
+  "license": "ISC"
+}

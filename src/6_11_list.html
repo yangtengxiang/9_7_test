@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<title>用户列表</title>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/css/bootstrap.min.css" />
+		<!-- import Vue before Element -->
+		<script src="https://unpkg.com/vue/dist/vue.js"></script>
+		<!-- 引入样式 -->
+		<link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css" />
+		<!-- 引入组件库 -->
+		<script src="https://unpkg.com/element-ui/lib/index.js"></script>
+		<style>
+			.alert-box {
+				position: fixed;
+				width: 100%;
+				height: 100%;
+				top: 0;
+				left: 0;
+				right: 0;
+				bottom: 0;
+				background: rgba(0, 0, 0, 0.4);
+				display: none;
+			}
+			.alert {
+				background: #fff;
+				position: absolute;
+				width: 100%;
+				height: 100%;
+				top: 0;
+				left: 0;
+				right: 0;
+				bottom: 0;
+				margin: auto;
+				height: 500px;
+				width: 500px;
+			}
+		</style>
+		<script>
+			function request(url, method, data, callback) {
+				var xhr = new XMLHttpRequest();
+				xhr.onreadystatechange = function () {
+					if (xhr.readyState === 4) {
+						console.log("请求" + url + "结束--状态码" + xhr.status);
+						//console.log("返回数据\n", xhr.responseText);
+						callback(xhr.responseText);
+					}
+				};
+				xhr.timeout = 15000;
+				xhr.onerror = function (e) {
+					console.error("请求出错", e);
+				};
+				xhr.ontimeout = function (e) {
+					console.error("请求超时", e);
+				};
+				xhr.open(method || "GET", url);
+				xhr.setRequestHeader("content-type", "application/json");
+				xhr.send(JSON.stringify(data));
+			}
+			//获取数据,并添加到页面
+			function getDate() {
+					request("/getUser", "GET", null, function (e) {
+						var t = JSON.parse(e);
+						console.log(t);
+						data = t.e;
+						var html = "";
+						for (var i = 0; i < t.e.length; i++) {
+							html += `<tr data-id="${t.e[i]._id}" data-index="${i}">
+							<td>${t.e[i].name}</td>
+							<td>${t.e[i].age}</td>
+							<td>${t.e[i].interest
+								.map(e => {
+									return "<span>" + e + "</span>";
+								})
+								.join(", ")}</td>
+							<td>${t.e[i].email}</td>
+							<td>
+								<a href="javascript:;" data-type="delete" class="btn btn-danger btn-xs">删除</a>
+								<a href="javascript:;" data-type="update" class="btn btn-success btn-xs">修改</a>
+							</td>
+						</tr>`;
+						}
+						document.querySelector("table").innerHTML = "<tr><td>用户名</td><td>年龄</td><td>爱好</td><td>邮箱</td><td>操作</td></tr>" + html;
+					});
+				}
+			var data = null;
+			var curId = null;
+			document.addEventListener("DOMContentLoaded", function () {
+				//获取数据
+				getDate();
+				//绑定刷新数据按钮
+				document.querySelector(".refresh").onclick = function() {
+					getDate();
+				};
+				//绑定数据的操作事件
+				document.querySelector("table").onclick = function (e) {
+					if (e.target.tagName === "A") {
+						if (e.target.dataset.type === "delete") {
+							//删除
+							console.warn("删除开始");
+							request("deleteUser", "POST", { id: e.target.parentElement.parentElement.dataset.id }, function (e) {
+								var t = JSON.parse(e);
+								if (t.status === "succeed") {
+									Vue.prototype.$message({ message: "删除成功", type: "success" });
+									getDate();
+								} else {
+									Vue.prototype.$error("错误,请查看控制台");
+									console.error(t);
+								}
+							});
+						} else {
+							console.warn("更新");
+							//更新
+							var i = e.target.parentElement.parentElement.dataset.index;
+							curId = data[i]._id;
+							document.querySelector(".alert-box").style.display = "block";
+							document.querySelector(".name").value = data[i].name;
+							document.querySelector(".pwd").value = data[i].password;
+							document.querySelector(".age").value = data[i].age;
+							document.querySelector(".email").value = data[i].email;
+							var arr = data[i].interest.slice(0);
+							document.querySelectorAll(".alert-box input[type=checkbox]").forEach(function (el) {
+								if (el.value === arr[0]) {
+									arr.shift();
+									el.checked = true;
+								} else {
+									el.checked = false;
+								}
+							});
+						}
+					}
+				};
+				//弹窗关闭
+				document.querySelector(".alert-box").onclick = function () {
+					document.querySelector(".alert-box").style.display = "none";
+					this.style.display = "none";
+				};
+				//在弹窗内部禁用弹窗关闭
+				document.querySelector(".alert-box>.alert").onclick = function (e) {
+					e.stopPropagation();
+				};
+				//提交修改
+				document.querySelector(".alert button").onclick = function (e) {
+					console.warn("提交!");
+					var label = document.querySelector(".interest").children;
+					var arr = [];
+					for (var i = 0; i < label.length; i++) {
+						if (label[i].firstElementChild.checked) {
+							arr.push(label[i].firstElementChild.value);
+						}
+					}
+					var data = {
+						id: curId,
+						data: {
+							name: document.querySelector(".name").value,
+							pwd: document.querySelector(".pwd").value,
+							age: +document.querySelector(".age").value,
+							email: document.querySelector(".email").value,
+							interest: arr,
+						},
+					};
+					console.log(data);
+					request("/updateUser", "POST", data, function (e) {
+						var t = JSON.parse(e);
+						document.querySelector(".alert-box").style.display = "none";
+						if (t.status === "succeed") {
+							Vue.prototype.$message({ message: "修改成功", type: "success" });
+							getDate();
+						} else {
+							Vue.prototype.$error("错误,请查看控制台");
+							console.error(t);
+						}
+					});
+				};
+			});
+		</script>
+	</head>
+	<body>
+		<div class="container">
+			<h6>
+				<a href="6_11_add.html" class="btn btn-primary">添加用户</a>
+				<a href="6_11_add.html" class="btn btn-primary refresh">刷新数据</a>
+			</h6>
+			<table class="table table-striped table-bordered"> </table>
+		</div>
+		<div class="alert-box">
+			<div class="alert">
+				<form onsubmit="return false">
+					<div class="form-group">
+						<label>用户名</label>
+						<input type="text" class="form-control name" placeholder="请填写用户名" />
+					</div>
+					<div class="form-group">
+						<label>密码</label>
+						<input type="password" class="form-control pwd" placeholder="请输入密码" />
+					</div>
+					<div class="form-group">
+						<label>年龄</label>
+						<input type="text" class="form-control age" placeholder="请填写邮箱" />
+					</div>
+					<div class="form-group">
+						<label>邮箱</label>
+						<input type="email" class="form-control email" placeholder="请填写邮箱" />
+					</div>
+					<div class="form-group">
+						<label>请选择爱好</label>
+						<div class="interest">
+							<label class="checkbox-inline"> <input type="checkbox" value="足球" /> 足球 </label>
+							<label class="checkbox-inline"> <input type="checkbox" value="篮球" /> 篮球 </label>
+							<label class="checkbox-inline"> <input type="checkbox" value="橄榄球" /> 橄榄球 </label>
+							<label class="checkbox-inline"> <input type="checkbox" value="敲代码" /> 敲代码 </label>
+							<label class="checkbox-inline"> <input type="checkbox" value="抽烟" /> 抽烟 </label>
+							<label class="checkbox-inline"> <input type="checkbox" value="喝酒" /> 喝酒 </label>
+							<label class="checkbox-inline"> <input type="checkbox" value="烫头" /> 烫头 </label>
+						</div>
+					</div>
+
+					<button type="submit" class="btn btn-primary">修改</button>
+				</form>
+			</div>
+		</div>
+	</body>
+</html>
